@@ -18,6 +18,7 @@ export default function Header() {
   const [searchQuery, setSearchQuery] = useState("")
   const [user, setUser] = useState(null)
   const [isAdmin, setIsAdmin] = useState(false)
+  const [hoveredCategory, setHoveredCategory] = useState(null)
   const pathname = usePathname()
   const { supabase } = useSupabase()
   const { cartItems } = useCart()
@@ -26,6 +27,7 @@ export default function Header() {
   const megaMenuTriggerRef = useRef(null)
   const searchInputRef = useRef(null)
   const router = useRouter()
+  const hoverTimeoutRef = useRef(null)
 
   // Category groups for mobile menu
   const categoryGroups = {
@@ -33,8 +35,105 @@ export default function Header() {
     Dining: "/products?category=Dining%20Table",
     Bedroom: "/products?category=Bedroom%20Set",
     Office: "/products?category=Office%20Desk",
-    "New Arrivals": "/products?category=new-arrivals",
-    "Epoxy Items": "/products?category=epoxy",
+    Storage: "/products?category=storage",
+    Restaurant: "/products?category=restaurant",
+    Industrial: "/products?category=industrial",
+    Interior: "/products?category=interior",
+    "Kitchen & Bath": "/products?category=kitchen-bath",
+  }
+
+  // Complete categories with subcategories based on your image
+  const mainCategories = {
+    "Living Room": {
+      href: "/products?category=living-room",
+      subcategories: [
+        { name: "Epoxy Table", href: "/products?category=epoxy-table" },
+        { name: "Center Table", href: "/products?category=center-table" },
+        { name: "Sofa/Couch/Bean", href: "/products?category=sofa-couch-bean" },
+        { name: "End Table", href: "/products?category=end-table" },
+        { name: "Arm Chair", href: "/products?category=arm-chair" },
+        { name: "TV Cabinet", href: "/products?category=tv-cabinet" },
+        { name: "Display Cabinet", href: "/products?category=display-cabinet" },
+        { name: "Shelf", href: "/products?category=shelf" },
+        { name: "Carpet/Rug", href: "/products?category=carpet-rug" },
+        { name: "Lamp/Light/Chandelier", href: "/products?category=lamp-light-chandelier" },
+        { name: "Living Room Set", href: "/products?category=living-room-set" },
+      ]
+    },
+    "Dining": {
+      href: "/products?category=dining",
+      subcategories: [
+        { name: "Dining Table", href: "/products?category=dining-table" },
+        { name: "Dining Chair", href: "/products?category=dining-chair" },
+        { name: "Dinner Wagon", href: "/products?category=dinner-wagon" },
+        { name: "Fine Dining Furniture", href: "/products?category=fine-dining-furniture" },
+      ]
+    },
+    "Bedroom": {
+      href: "/products?category=bedroom",
+      subcategories: [
+        { name: "Bed", href: "/products?category=bed" },
+        { name: "Murphy Bed", href: "/products?category=murphy-bed" },
+        { name: "Bed Side Table", href: "/products?category=bed-side-table" },
+        { name: "Dressing Table", href: "/products?category=dressing-table" },
+        { name: "Bedroom Set", href: "/products?category=bedroom-set" },
+      ]
+    },
+    "Office": {
+      href: "/products?category=office",
+      subcategories: [
+        { name: "Study Table", href: "/products?category=study-table" },
+        { name: "Office Desk", href: "/products?category=office-desk" },
+        { name: "Conference Table", href: "/products?category=conference-table" },
+        { name: "Modular Work Station", href: "/products?category=modular-work-station" },
+        { name: "Visitor Chair", href: "/products?category=visitor-chair" },
+        { name: "Break Room Furniture", href: "/products?category=break-room-furniture" },
+        { name: "Office Set", href: "/products?category=office-set" },
+      ]
+    },
+    "Storage": {
+      href: "/products?category=storage",
+      subcategories: [
+        { name: "Cabinet/Almira", href: "/products?category=cabinet-almira" },
+        { name: "Book Shelf", href: "/products?category=book-shelf" },
+        { name: "Shoe Rack", href: "/products?category=shoe-rack" },
+        { name: "Store Cabinet", href: "/products?category=store-cabinet" },
+      ]
+    },
+    "Restaurant": {
+      href: "/products?category=restaurant",
+      subcategories: [
+        { name: "Fine Dining Furniture", href: "/products?category=fine-dining-furniture" },
+        { name: "Reception Furniture", href: "/products?category=reception-furniture" },
+        { name: "Bar Stool", href: "/products?category=bar-stool" },
+        { name: "Cash Counter", href: "/products?category=cash-counter" },
+        { name: "Restaurant Set", href: "/products?category=restaurant-set" },
+      ]
+    },
+    "Industrial": {
+      href: "/products?category=industrial",
+      subcategories: [
+        { name: "PU Flooring", href: "/products?category=pu-flooring" },
+        { name: "Lab Clear Coat", href: "/products?category=lab-clear-coat" },
+        { name: "Industrial Solutions", href: "/products?category=industrial-solutions" },
+      ]
+    },
+    "Interior": {
+      href: "/products?category=interior",
+      subcategories: [
+        { name: "Interior Consultation", href: "/products?category=interior-consultation" },
+        { name: "Project Execution", href: "/products?category=project-execution" },
+        { name: "Epoxy Services", href: "/products?category=epoxy-services" },
+        { name: "Portable Partition", href: "/products?category=portable-partition" },
+      ]
+    },
+    "Kitchen & Bath": {
+      href: "/products?category=kitchen-bath",
+      subcategories: [
+        { name: "Kitchen Counter Top", href: "/products?category=kitchen-counter-top" },
+        { name: "Wooden Wash Basin", href: "/products?category=wooden-wash-basin" },
+      ]
+    }
   }
 
   useEffect(() => {
@@ -107,6 +206,7 @@ export default function Header() {
         !megaMenuTriggerRef.current.contains(event.target)
       ) {
         setIsMegaMenuOpen(false)
+        setHoveredCategory(null)
       }
     }
 
@@ -120,6 +220,7 @@ export default function Header() {
   useEffect(() => {
     setIsMegaMenuOpen(false)
     setIsMenuOpen(false)
+    setHoveredCategory(null)
   }, [pathname])
 
   // Focus search input when search box opens
@@ -141,8 +242,34 @@ export default function Header() {
     setIsAccountMenuOpen(!isAccountMenuOpen)
   }
 
-  const toggleMegaMenu = () => {
-    setIsMegaMenuOpen(!isMegaMenuOpen)
+  const handleProductsHover = () => {
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current)
+    }
+    setIsMegaMenuOpen(true)
+    setHoveredCategory(Object.keys(mainCategories)[0]) // Set first category as default
+  }
+
+  const handleProductsLeave = () => {
+    hoverTimeoutRef.current = setTimeout(() => {
+      setIsMegaMenuOpen(false)
+      setHoveredCategory(null)
+    }, 150) // Small delay to allow moving to dropdown
+  }
+
+  const handleDropdownEnter = () => {
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current)
+    }
+  }
+
+  const handleDropdownLeave = () => {
+    setIsMegaMenuOpen(false)
+    setHoveredCategory(null)
+  }
+
+  const handleCategoryHover = (categoryName) => {
+    setHoveredCategory(categoryName)
   }
 
   const toggleSearch = () => {
@@ -158,12 +285,11 @@ export default function Header() {
     }
   }
 
-  // New navigation links as requested
+  // Modified navigation links: removed Rooms and New Arrival
   const navLinks = [
     { name: "Home", href: "/" },
     { name: "Products", href: "/products", hasDropdown: true },
-    { name: "Rooms", href: "/rooms" },
-    { name: "New Arrival", href: "/products?category=new-arrivals" },
+    // Removed "Rooms" and "New Arrival" links
     { name: "Interior", href: "/interior" },
     { name: "Epoxy Services", href: "/epoxy-services" },
     { name: "Resellers", href: "/resellers" },
@@ -184,16 +310,22 @@ export default function Header() {
           <nav className="hidden md:flex items-center space-x-4 lg:space-x-6">
             {navLinks.map((link) => 
               link.hasDropdown ? (
-                <div className="relative" key={link.name} ref={megaMenuTriggerRef}>
-                  <button
-                    onClick={toggleMegaMenu}
+                <div 
+                  className="relative" 
+                  key={link.name} 
+                  ref={megaMenuTriggerRef}
+                  onMouseEnter={handleProductsHover}
+                  onMouseLeave={handleProductsLeave}
+                >
+                  <Link
+                    href={link.href}
                     className={`flex items-center text-base font-medium hover:text-amber-500 transition-colors ${
                       pathname.startsWith(link.href) ? "text-amber-500" : ""
                     }`}
                   >
                     {link.name}
                     <ChevronDown className={`ml-1 h-4 w-4 transition-transform ${isMegaMenuOpen ? "rotate-180" : ""}`} />
-                  </button>
+                  </Link>
                 </div>
               ) : (
                 <Link
@@ -316,10 +448,77 @@ export default function Header() {
         </div>
       )}
 
-      {/* Mega Menu - positioned outside the header container for full width */}
+      {/* Custom Dropdown Menu for Products (Desktop only) - Made transparent */}
       {isMegaMenuOpen && (
-        <div ref={megaMenuRef} className="fixed left-0 right-0 top-20 z-40">
-          <MegaMenu onClose={() => setIsMegaMenuOpen(false)} />
+        <div 
+          ref={megaMenuRef}
+          className="fixed left-1/2 transform -translate-x-1/2 top-20 z-40 hidden md:block"
+          onMouseEnter={handleDropdownEnter}
+          onMouseLeave={handleDropdownLeave}
+        >
+          <div className="bg-white/90 backdrop-blur-sm rounded-lg shadow-xl border border-gray-200/50 w-[1000px] p-6">
+            <div className="flex">
+              {/* Main Categories Column */}
+              <div className="w-1/3 pr-4 border-r border-gray-200/50">
+                <h3 className="text-lg font-semibold text-gray-800 mb-4">Categories</h3>
+                <ul className="space-y-2">
+                  {Object.entries(mainCategories).map(([categoryName, categoryData]) => (
+                    <li key={categoryName}>
+                      <Link
+                        href={categoryData.href}
+                        className={`block px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                          hoveredCategory === categoryName 
+                            ? "bg-amber-50/80 text-amber-600" 
+                            : "text-gray-700 hover:bg-gray-50/80"
+                        }`}
+                        onMouseEnter={() => handleCategoryHover(categoryName)}
+                      >
+                        {categoryName}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              {/* Subcategories Column */}
+              <div className="w-2/3 pl-4">
+                {hoveredCategory && mainCategories[hoveredCategory] && (
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-800 mb-4">{hoveredCategory}</h3>
+                    <div className="grid grid-cols-2 gap-2">
+                      {mainCategories[hoveredCategory].subcategories.map((subcategory) => (
+                        <Link
+                          key={subcategory.name}
+                          href={subcategory.href}
+                          className="block px-3 py-2 rounded-md text-sm text-gray-600 hover:bg-amber-50/70 hover:text-amber-600 transition-colors"
+                        >
+                          {subcategory.name}
+                        </Link>
+                      ))}
+                    </div>
+                    <div className="mt-4 pt-4 border-t border-gray-200/50">
+                      <Link
+                        href={mainCategories[hoveredCategory].href}
+                        className="inline-block px-4 py-2 bg-amber-500/90 text-white rounded-md text-sm font-medium hover:bg-amber-600/90 transition-colors"
+                      >
+                        View All {hoveredCategory}
+                      </Link>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* View All Products Button */}
+            <div className="mt-6 pt-4 border-t border-gray-200/50 text-center">
+              <Link
+                href="/products"
+                className="inline-block px-6 py-2 bg-gray-100/80 text-gray-700 rounded-md text-sm font-medium hover:bg-gray-200/80 transition-colors"
+              >
+                View All Products
+              </Link>
+            </div>
+          </div>
         </div>
       )}
 
