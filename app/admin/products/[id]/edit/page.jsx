@@ -155,26 +155,82 @@ export default function EditProduct({ params }) {
     setSuccess(false)
 
     try {
-      let imageUrl = product.image_url
-
-      // Upload image if a new one is selected
+      let imageUrl = product.image_url      // Upload image if a new one is selected
       if (imageFile) {
-        const fileExt = imageFile.name.split('.').pop()
-        const fileName = `${Date.now()}.${fileExt}`
-        const filePath = `products/${fileName}`
-
-        const { error: uploadError } = await supabase.storage
-          .from('product-images')
-          .upload(filePath, imageFile)
-
-        if (uploadError) throw uploadError
-
-        // Get public URL
-        const { data: urlData } = supabase.storage
-          .from('product-images')
-          .getPublicUrl(filePath)
-
-        imageUrl = urlData.publicUrl
+        // Use our improved upload API
+        const formData = new FormData();
+        formData.append('file', imageFile);
+        formData.append('folder', 'products');
+        
+        try {
+          // Try direct Supabase upload first
+          try {
+            console.log("Attempting direct Supabase upload...");
+            const fileExt = imageFile.name.split('.').pop();
+            const fileName = `${Date.now()}.${fileExt}`;
+            const filePath = `products/${fileName}`;
+            
+            // Convert file to array buffer for Supabase client
+            const fileArrayBuffer = await imageFile.arrayBuffer();
+            const fileBuffer = new Uint8Array(fileArrayBuffer);
+            
+            const { data: uploadData, error: uploadError } = await supabase.storage
+              .from('eighthand')
+              .upload(filePath, fileBuffer, {
+                contentType: imageFile.type,
+                cacheControl: '3600'
+              });
+              
+            if (uploadError) {
+              console.log("Direct upload failed:", uploadError.message);
+              throw uploadError;
+            }
+            
+            // Get the public URL
+            const { data: urlData } = supabase.storage
+              .from('eighthand')
+              .getPublicUrl(filePath);
+              
+            imageUrl = urlData.publicUrl;
+            console.log("Direct upload succeeded:", imageUrl);
+          } catch (directUploadError) {
+            console.log("Direct upload failed, trying API upload...");
+            
+            // If direct upload fails, try the API upload endpoint
+            const uploadResponse = await fetch('/api/storage/upload', {
+              method: 'POST',
+              body: formData
+            });
+            
+            const uploadResult = await uploadResponse.json();
+            
+            if (!uploadResponse.ok || !uploadResult.success) {
+              // If regular upload fails, try the admin upload endpoint
+              console.log("API upload failed, trying admin upload...");
+              const adminUploadResponse = await fetch('/api/storage/admin-upload', {
+                method: 'POST',
+                body: formData
+              });
+              
+              const adminUploadResult = await adminUploadResponse.json();
+              
+              if (!adminUploadResponse.ok || !adminUploadResult.success) {
+                throw new Error(adminUploadResult.message || 'Admin upload also failed');
+              }
+              
+              // Use the admin upload result
+              imageUrl = adminUploadResult.data.url;
+              console.log("Admin upload succeeded:", imageUrl);
+            } else {
+              // Regular upload worked
+              imageUrl = uploadResult.data.url;
+              console.log("API upload succeeded:", imageUrl);
+            }
+          }
+        } catch (uploadError) {
+          console.error("All upload methods failed:", uploadError);
+          throw new Error(`Image upload failed: ${uploadError.message}`);
+        }
       }
 
       // Prepare data for API

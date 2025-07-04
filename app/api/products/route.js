@@ -36,10 +36,11 @@ export async function POST(request) {
   try {
     const body = await request.json();
 
-    // Process image URL if exists
+    // Process image URL if exists - could be from direct upload or external URL
     if (body.image_url) {
       body.image_url = body.image_url.trim();
-      if (!body.image_url.match(/^https?:\/\//)) {
+      // Only add https:// prefix if it's not already a fully qualified URL and not from Supabase storage
+      if (!body.image_url.match(/^https?:\/\//) && !body.image_url.includes('supabase')) {
         body.image_url = `https://${body.image_url}`;
       }
     }

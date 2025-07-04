@@ -55,13 +55,13 @@ export class ProductService {
         }
       }
 
-      // Process image URL
+      // Process image URL - the URL might come from Supabase storage or external source
       if (productData.image_url) {
         // Ensure image URL is trimmed
         productData.image_url = productData.image_url.trim();
 
-        // Add https:// prefix if missing
-        if (!productData.image_url.match(/^https?:\/\//)) {
+        // Add https:// prefix if missing and not already a Supabase storage URL
+        if (!productData.image_url.match(/^https?:\/\//) && !productData.image_url.includes('supabase')) {
           productData.image_url = `https://${productData.image_url}`;
         }
       }
