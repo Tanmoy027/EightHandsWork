@@ -106,7 +106,7 @@ export default function Orders() {
                   <div className="p-4 border-t">
                     <div className="flex justify-between mb-2">
                       <span className="text-gray-600">Total Amount:</span>
-                      <span className="font-bold">${order.total_amount}</span>
+                      <span className="font-bold">৳{order.total_amount}</span>
                     </div>
                     <div className="flex justify-between mb-2">
                       <span className="text-gray-600">Shipping Address:</span>

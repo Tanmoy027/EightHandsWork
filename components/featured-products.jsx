@@ -85,7 +85,7 @@ export default function FeaturedProducts() {
   return (
     <section className="py-16 bg-white">
       <div className="container mx-auto px-4">
-        <h2 className="section-title">Featured Products</h2>
+        <h2 className="text-2xl font-medium text-center mb-8">FEATURED PRODUCTS</h2>
 
         {products.length === 0 ? (
           <div className="text-center py-12">
@@ -119,7 +119,7 @@ export default function FeaturedProducts() {
                   <p className="text-gray-600 mb-2 line-clamp-2">{product.description}</p>
                   <div className="flex justify-between items-center">
                     <span className="text-xl font-bold text-amber-500">
-                      ${Number.parseFloat(product.price || 0).toFixed(2)}
+                      ৳{Number.parseFloat(product.price || 0).toFixed(2)}
                     </span>
                     <Link
                       href={`/products/${product.id}`}

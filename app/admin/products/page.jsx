@@ -164,10 +164,10 @@ export default function ProductsPage() {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">${product.price.toFixed(2)}</div>
+                      <div className="text-sm text-gray-900">৳{product.price.toFixed(2)}</div>
                       {product.discount_price && (
                         <div className="text-xs text-gray-500 line-through">
-                          ${product.discount_price.toFixed(2)}
+                          ৳{product.discount_price.toFixed(2)}
                         </div>
                       )}
                     </td>
@@ -197,9 +197,59 @@ export default function ProductsPage() {
                         </Link>
                         <button 
                           className="text-red-600 hover:text-red-800"
-                          onClick={() => {
+                          onClick={async () => {
                             if (confirm("Are you sure you want to delete this product?")) {
-                              // Handle delete logic
+                              try {
+                                console.log("Attempting to delete product with ID:", product.id);
+                                
+                                // Use the API endpoint for deletion instead of direct Supabase access
+                                const response = await fetch(`/api/products/${product.id}`, {
+                                  method: 'DELETE',
+                                  headers: {
+                                    'Content-Type': 'application/json'
+                                  }
+                                });
+                                
+                                const result = await response.json();
+                                
+                                if (!response.ok) {
+                                  console.error("Error deleting product:", result);
+                                  
+                                  // Handle the case where product is referenced in orders
+                                  if (result.error && result.error.includes("referenced in orders")) {
+                                    // Show a custom modal or confirm dialog
+                                    if (confirm(result.error + "\n\nWould you like to mark it as out of stock instead?")) {
+                                      // Update the product to be out of stock
+                                      const updateResponse = await fetch(`/api/products/${product.id}`, {
+                                        method: 'PUT',
+                                        headers: {
+                                          'Content-Type': 'application/json'
+                                        },
+                                        body: JSON.stringify({ in_stock: false })
+                                      });
+                                      
+                                      if (updateResponse.ok) {
+                                        // Update product in UI
+                                        setProducts(products.map(p => 
+                                          p.id === product.id ? {...p, in_stock: false} : p
+                                        ));
+                                        alert("Product marked as out of stock.");
+                                      } else {
+                                        alert("Failed to update product status.");
+                                      }
+                                    }
+                                  } else {
+                                    alert(`Failed to delete product: ${result.error || 'Unknown error'}`);
+                                  }
+                                } else {
+                                  // Update UI by removing the deleted product
+                                  setProducts(products.filter(p => p.id !== product.id));
+                                  alert("Product deleted successfully!");
+                                }
+                              } catch (error) {
+                                console.error("Exception when deleting product:", error);
+                                alert("An unexpected error occurred: " + (error.message || "Unknown error"));
+                              }
                             }
                           }}
                         >

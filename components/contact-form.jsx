@@ -53,7 +53,7 @@ export default function ContactForm() {
   return (
     <section className="py-16 bg-gray-50">
       <div className="container mx-auto">
-        <h2 className="section-title">Contact Us</h2>
+        <h2 className="text-2xl font-medium text-center mb-8">CONTACT US</h2>
         <p className="text-center text-gray-600 max-w-3xl mx-auto mb-12">
           Have questions about our products or services? Get in touch with us and we'll be happy to assist you.
         </p>

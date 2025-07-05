@@ -83,44 +83,84 @@ export default function RoomShowcase() {
     });
   };
 
-  // State for the Interior slideshow
-  const [currentInteriorImage, setCurrentInteriorImage] = useState(0);
+  // State for interior images
+  const [currentInteriorImages, setCurrentInteriorImages] = useState([0, 0, 0, 0]);
   
-  // Interior images 
-  const interiorImages = [
-    "/intorior/product1.jpg",
-    "/intorior/product2.jpg",
-    "/intorior/product3.jpg",
-    "/intorior/product4.jpg"
+  // Interior designs with multiple images per design
+  const interiorDesigns = [
+    {
+      name: "Modern Interior",
+      images: [
+        "/intorior/img1.jpg",
+        "/intorior/product1.jpg",
+      ],
+      category: "Interior Modern",
+      description: "Sleek and contemporary interior designs for modern living",
+    },
+    {
+      name: "Classic Interior",
+      images: [
+        "/intorior/img2.jpg",
+        "/intorior/product2.jpg",
+      ],
+      category: "Interior Classic",
+      description: "Timeless classic interior designs with elegant touches",
+    },
+    {
+      name: "Minimalist Interior",
+      images: [
+        "/intorior/img3.jpg",
+        "/intorior/product3.jpg",
+      ],
+      category: "Interior Minimalist",
+      description: "Clean and uncluttered designs for minimalist aesthetics",
+    },
+    {
+      name: "Luxury Interior",
+      images: [
+        "/intorior/img4.jpg",
+        "/intorior/product4.jpg",
+        "/intorior/img5.jpg",
+      ],
+      category: "Interior Luxury",
+      description: "Premium interior designs with luxurious finishes",
+    },
   ];
   
   // Auto-slide interior images
   useEffect(() => {
     const interiorInterval = setInterval(() => {
-      setCurrentInteriorImage((prev) => (prev + 1) % interiorImages.length);
+      setCurrentInteriorImages(prev => 
+        prev.map((current, idx) => (current + 1) % interiorDesigns[idx].images.length)
+      );
     }, 5000);
     
     return () => clearInterval(interiorInterval);
-  }, [interiorImages.length]);
+  }, [interiorDesigns]);
   
-  // Interior navigation functions
-  const prevInteriorImage = () => {
-    setCurrentInteriorImage((prev) => 
-      (prev - 1 + interiorImages.length) % interiorImages.length
-    );
+  // Function to navigate to the previous interior image
+  const prevInteriorImage = (interiorIndex) => {
+    setCurrentInteriorImages(prev => {
+      const newImages = [...prev];
+      newImages[interiorIndex] = (newImages[interiorIndex] - 1 + interiorDesigns[interiorIndex].images.length) % interiorDesigns[interiorIndex].images.length;
+      return newImages;
+    });
   };
-  
-  const nextInteriorImage = () => {
-    setCurrentInteriorImage((prev) => 
-      (prev + 1) % interiorImages.length
-    );
+
+  // Function to navigate to the next interior image
+  const nextInteriorImage = (interiorIndex) => {
+    setCurrentInteriorImages(prev => {
+      const newImages = [...prev];
+      newImages[interiorIndex] = (newImages[interiorIndex] + 1) % interiorDesigns[interiorIndex].images.length;
+      return newImages;
+    });
   };
   
   return (
     <section className="py-8 md:py-16 bg-gray-50">
       <div className="container mx-auto px-4">
-        <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-center mb-6 md:mb-12">
-          Explore Our Room Collections
+        <h2 className="text-2xl md:text-3xl font-medium text-center mb-8">
+          EXPLORE OUR ROOM COLLECTIONS
         </h2>
 
         <div className="grid grid-cols-2 md:grid-cols-2 gap-3 md:gap-8">
@@ -226,100 +266,113 @@ export default function RoomShowcase() {
           ))}
         </div>
 
-        {/* Interior Section - Large box after the four room boxes */}
-        <div className="mt-8 md:mt-12">
-          <h3 className="text-2xl md:text-3xl font-bold text-center mb-4 md:mb-8">
-            Interior
-          </h3>
+        {/* Interior Design Section */}
+        <div className="mt-8 md:mt-16">
+          <h2 className="text-2xl font-medium text-center mb-8">
+            INTERIOR DESIGN COLLECTIONS
+          </h2>
           
-          <div className="group relative overflow-hidden rounded-2xl shadow-lg h-60 sm:h-96 md:h-[500px] border border-gray-100">
-            <div className="relative w-full h-full">
-              {interiorImages.map((image, index) => (
-                <motion.div
-                  key={index}
-                  className="absolute inset-0"
-                  initial={{ opacity: 0, x: 100 }}
-                  animate={{ 
-                    opacity: currentInteriorImage === index ? 1 : 0,
-                    x: currentInteriorImage === index ? 0 : 100
-                  }}
-                  transition={{ duration: 0.7, ease: "easeInOut" }}
-                  style={{ display: currentInteriorImage === index ? "block" : "none" }}
-                >
-                  <Image
-                    src={image}
-                    alt={`Interior Design - View ${index + 1}`}
-                    fill
-                    className="object-cover rounded-2xl"
-                    priority={index === 0}
-                  />
-                </motion.div>
-              ))}
-              
-              {/* Navigation Dots */}
-              <div className="absolute bottom-4 md:bottom-8 left-0 right-0 flex justify-center space-x-2 md:space-x-3 z-10">
-                {interiorImages.map((_, index) => (
-                  <button
-                    key={index}
-                    className={`w-2 h-2 md:w-3 md:h-3 rounded-full transition-all duration-300 ${
-                      currentInteriorImage === index 
-                        ? "bg-white md:w-6 w-4" 
-                        : "bg-white/50"
-                    }`}
-                    onClick={() => setCurrentInteriorImage(index)}
-                    aria-label={`View interior image ${index + 1}`}
-                  />
-                ))}
-              </div>
-              
-              {/* Navigation Arrows */}
-              <button 
-                className="absolute left-4 top-1/2 -translate-y-1/2 bg-black/30 hover:bg-black/50 text-white rounded-full p-2 md:p-3 opacity-0 group-hover:opacity-100 transition-opacity z-10"
-                onClick={(e) => {
-                  e.preventDefault();
-                  prevInteriorImage();
-                }}
-                aria-label="Previous interior image"
+          <div className="grid grid-cols-2 md:grid-cols-2 gap-3 md:gap-8">
+            {interiorDesigns.map((design, designIndex) => (
+              <div 
+                key={designIndex}
+                className="group relative overflow-hidden rounded-2xl shadow-lg h-36 sm:h-48 md:h-80 border border-gray-100"
               >
-                <ChevronLeft size={24} />
-              </button>
-              
-              <button 
-                className="absolute right-4 top-1/2 -translate-y-1/2 bg-black/30 hover:bg-black/50 text-white rounded-full p-2 md:p-3 opacity-0 group-hover:opacity-100 transition-opacity z-10"
-                onClick={(e) => {
-                  e.preventDefault();
-                  nextInteriorImage();
-                }}
-                aria-label="Next interior image"
-              >
-                <ChevronRight size={24} />
-              </button>
-            </div>
-            
-            <div className="absolute inset-0 bg-black bg-opacity-30 group-hover:bg-opacity-20 transition-all duration-300 rounded-2xl">
-              <Link
-                href="/products?category=Interior"
-                className="absolute inset-0 flex flex-col items-center justify-center text-white p-6 z-5"
-              >
-                <motion.div 
-                  className="bg-white/80 backdrop-blur-sm text-gray-900 py-2 px-6 rounded-xl mb-3"
-                  initial={{ y: -20, opacity: 0 }}
-                  animate={{ y: 0, opacity: 1 }}
-                  transition={{ duration: 0.5, delay: 0.2 }}
-                >
-                  <h3 className="text-xl md:text-2xl font-bold">Interior Design</h3>
-                </motion.div>
+                <div className="relative w-full h-full">
+                  {design.images.map((image, imageIndex) => (
+                    <motion.div
+                      key={imageIndex}
+                      className="absolute inset-0"
+                      initial={{ opacity: 0, x: 100 }}
+                      animate={{ 
+                        opacity: currentInteriorImages[designIndex] === imageIndex ? 1 : 0,
+                        x: currentInteriorImages[designIndex] === imageIndex ? 0 : 100
+                      }}
+                      transition={{ duration: 0.7, ease: "easeInOut" }}
+                      style={{ display: currentInteriorImages[designIndex] === imageIndex ? "block" : "none" }}
+                    >
+                      <Image
+                        src={image}
+                        alt={`${design.name} - View ${imageIndex + 1}`}
+                        fill
+                        className="object-cover rounded-2xl"
+                        priority={imageIndex === 0}
+                      />
+                    </motion.div>
+                  ))}
+                  
+                  {/* Navigation Dots - Hide on smallest screens */}
+                  <div className="absolute bottom-1 md:bottom-4 left-0 right-0 flex justify-center space-x-1 md:space-x-2 z-10">
+                    {design.images.map((_, imageIndex) => (
+                      <button
+                        key={imageIndex}
+                        className={`w-1 h-1 md:w-2 md:h-2 rounded-full transition-all duration-300 ${
+                          currentInteriorImages[designIndex] === imageIndex 
+                            ? "bg-white md:w-4 w-2" 
+                            : "bg-white/50"
+                        }`}
+                        onClick={() => {
+                          setCurrentInteriorImages(prev => {
+                            const newImages = [...prev];
+                            newImages[designIndex] = imageIndex;
+                            return newImages;
+                          });
+                        }}
+                        aria-label={`View interior image ${imageIndex + 1}`}
+                      />
+                    ))}
+                  </div>
+                  
+                  {/* Navigation Arrows - Hide on mobile */}
+                  <button 
+                    className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/30 hover:bg-black/50 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity z-10 hidden md:block"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      prevInteriorImage(designIndex);
+                    }}
+                    aria-label="Previous interior image"
+                  >
+                    <ChevronLeft size={20} />
+                  </button>
+                  
+                  <button 
+                    className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/30 hover:bg-black/50 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity z-10 hidden md:block"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      nextInteriorImage(designIndex);
+                    }}
+                    aria-label="Next interior image"
+                  >
+                    <ChevronRight size={20} />
+                  </button>
+                </div>
                 
-                <motion.p 
-                  className="text-center text-white text-shadow max-w-lg text-base md:text-lg"
-                  initial={{ y: 20, opacity: 0 }}
-                  animate={{ y: 0, opacity: 1 }}
-                  transition={{ duration: 0.5, delay: 0.3 }}
-                >
-                  Comprehensive interior design solutions to transform your space
-                </motion.p>
-              </Link>
-            </div>
+                <div className="absolute inset-0 bg-black bg-opacity-30 group-hover:bg-opacity-20 transition-all duration-300 rounded-2xl">
+                  <Link
+                    href={`/products?category=${encodeURIComponent(design.category)}`}
+                    className="absolute inset-0 flex flex-col items-center justify-center text-white p-2 md:p-6 z-5"
+                  >
+                    <motion.div 
+                      className="bg-white/80 backdrop-blur-sm text-gray-900 py-1 px-3 md:py-2 md:px-6 rounded-xl mb-1 md:mb-3"
+                      initial={{ y: -20, opacity: 0 }}
+                      animate={{ y: 0, opacity: 1 }}
+                      transition={{ duration: 0.5, delay: 0.2 }}
+                    >
+                      <h3 className="text-sm md:text-xl font-bold">{design.name}</h3>
+                    </motion.div>
+                    
+                    <motion.p 
+                      className="text-center text-white text-shadow hidden md:block max-w-xs"
+                      initial={{ y: 20, opacity: 0 }}
+                      animate={{ y: 0, opacity: 1 }}
+                      transition={{ duration: 0.5, delay: 0.3 }}
+                    >
+                      {design.description}
+                    </motion.p>
+                  </Link>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </div>

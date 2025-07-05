@@ -1,5 +1,6 @@
 import { ProductModel } from "../models/Product.js"
 import { CategoryModel } from "../models/Category.js"
+import { ProductImageModel } from "../models/ProductImage.js"
 
 export class ProductService {
   // Get all products with filters
@@ -192,6 +193,72 @@ export class ProductService {
       return result
     } catch (error) {
       console.error("ProductService - getProductsByCategory error:", error)
+      return { success: false, data: [], error: error.message }
+    }
+  }
+  
+  // Get product images
+  static async getProductImages(productId) {
+    try {
+      if (!productId) {
+        throw new Error("Product ID is required")
+      }
+      
+      const result = await ProductImageModel.findByProductId(productId)
+      if (!result.success) {
+        throw new Error(result.error)
+      }
+      return result
+    } catch (error) {
+      console.error("ProductService - getProductImages error:", error)
+      return { success: false, data: [], error: error.message }
+    }
+  }
+  
+  // Add product images
+  static async addProductImages(productId, images) {
+    try {
+      if (!productId) {
+        throw new Error("Product ID is required")
+      }
+      
+      if (!images || !Array.isArray(images) || images.length === 0) {
+        return { success: true, data: [], error: null }
+      }
+      
+      // Format images with product_id
+      const formattedImages = images.map((img, index) => ({
+        product_id: productId,
+        image_url: img.image_url,
+        is_main: img.is_main || index === 0,
+        display_order: img.display_order || index
+      }))
+      
+      const result = await ProductImageModel.createMany(formattedImages)
+      if (!result.success) {
+        throw new Error(result.error)
+      }
+      return result
+    } catch (error) {
+      console.error("ProductService - addProductImages error:", error)
+      return { success: false, data: [], error: error.message }
+    }
+  }
+  
+  // Update product images
+  static async updateProductImages(productId, images) {
+    try {
+      if (!productId) {
+        throw new Error("Product ID is required")
+      }
+      
+      // First delete all existing images for this product
+      await ProductImageModel.deleteByProductId(productId)
+      
+      // Then add the new images
+      return await this.addProductImages(productId, images)
+    } catch (error) {
+      console.error("ProductService - updateProductImages error:", error)
       return { success: false, data: [], error: error.message }
     }
   }

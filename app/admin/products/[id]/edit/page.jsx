@@ -1,20 +1,21 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import Image from "next/image"
 import { useSupabase } from "@/lib/supabase-provider"
-import { ArrowLeft, Save, Trash2, ImagePlus } from "lucide-react"
+import { ArrowLeft, Save, Trash2, ImagePlus, UploadCloud, X } from "lucide-react"
+import { use } from "react"
 
 export default function EditProduct({ params }) {
-  // Fix: use params directly without React.use()
-  const productId = params.id
+  // Fix: use React.use() to unwrap params promise
+  const unwrappedParams = use(params)
+  const productId = unwrappedParams.id
   
   const router = useRouter()
   const { supabase, user } = useSupabase()
-  
-  const [product, setProduct] = useState({
+    const [product, setProduct] = useState({
     name: "",
     description: "",
     price: "",
@@ -34,6 +35,10 @@ export default function EditProduct({ params }) {
   const [success, setSuccess] = useState(false)
   const [imageFile, setImageFile] = useState(null)
   const [imagePreview, setImagePreview] = useState(null)
+  const [additionalImageFiles, setAdditionalImageFiles] = useState([])
+  const [additionalImagePreviews, setAdditionalImagePreviews] = useState([])
+  const [productImages, setProductImages] = useState([])
+  const additionalFileInputRef = useRef(null)
 
   // Define category groups for the selector
   const categoryGroups = {
@@ -76,8 +81,7 @@ export default function EditProduct({ params }) {
           .single()
           
         if (productError) throw productError
-        
-        if (!productData) {
+          if (!productData) {
           setError("Product not found")
           return
         }
@@ -87,7 +91,25 @@ export default function EditProduct({ params }) {
           ...productData,
           price: productData.price !== null ? productData.price : "",
           discount_price: productData.discount_price !== null ? productData.discount_price : "",
-        })
+        })        // Fetch product images
+        try {
+          const imagesResponse = await fetch(`/api/products/${productId}/images`)
+          const imagesResult = await imagesResponse.json()
+          
+          if (imagesResult.success) {
+            setProductImages(imagesResult.data || [])
+            
+            // Set additional image previews from existing images
+            // Skip the main image as it's already displayed in the main image section
+            const additionalImages = imagesResult.data.filter(img => !img.is_main)
+            if (additionalImages.length > 0) {
+              console.log("Setting additional images:", additionalImages);
+              setAdditionalImagePreviews(additionalImages.map(img => img.image_url))
+            }
+          }
+        } catch (imagesError) {
+          console.error("Error fetching product images:", imagesError)
+        }
 
         // Fetch categories
         const { data: categoriesData, error: categoriesError } = await supabase
@@ -128,12 +150,26 @@ export default function EditProduct({ params }) {
       }))
     }
   }
-
   const handleImageChange = (e) => {
     const file = e.target.files[0]
     if (!file) return
 
+    // Check file type
+    const fileType = file.type
+    if (!fileType.startsWith('image/')) {
+      setError('Please upload an image file (JPEG, PNG, etc.)')
+      return
+    }
+    
+    // Check file size (limit to 5MB)
+    const fileSizeInMB = file.size / (1024 * 1024)
+    if (fileSizeInMB > 5) {
+      setError('Image file is too large. Please upload an image smaller than 5MB.')
+      return
+    }
+
     setImageFile(file)
+    setError(null)
 
     // Create preview
     const reader = new FileReader()
@@ -141,6 +177,82 @@ export default function EditProduct({ params }) {
       setImagePreview(e.target.result)
     }
     reader.readAsDataURL(file)
+  }
+  
+  const handleAdditionalImageChange = (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+    
+    // Check file type
+    const fileType = file.type
+    if (!fileType.startsWith('image/')) {
+      setError('Please upload an image file (JPEG, PNG, etc.)')
+      return
+    }
+    
+    // Check file size (limit to 5MB)
+    const fileSizeInMB = file.size / (1024 * 1024)
+    if (fileSizeInMB > 5) {
+      setError('Image file is too large. Please upload an image smaller than 5MB.')
+      return
+    }
+    
+    // Don't allow more than 3 additional images
+    if (additionalImageFiles.length + additionalImagePreviews.length >= 3) {
+      setError('Maximum 3 additional images allowed')
+      return
+    }
+    
+    // Add to additional image files array
+    setAdditionalImageFiles(prev => [...prev, file])
+    setError(null)
+    
+    // Create preview
+    const reader = new FileReader()
+    reader.onload = () => {
+      setAdditionalImagePreviews(prev => [...prev, reader.result])
+    }
+    reader.readAsDataURL(file)
+      // Reset the file input for the next selection
+    if (additionalFileInputRef.current) {
+      additionalFileInputRef.current.value = ''
+    }
+  }
+  
+  const handleRemoveAdditionalImage = (index) => {
+    console.log("Removing image at index:", index);
+    console.log("Current files:", additionalImageFiles.length);
+    console.log("Current previews:", additionalImagePreviews.length);
+    
+    if (index < additionalImageFiles.length) {
+      // Remove from new files
+      setAdditionalImageFiles(prev => prev.filter((_, i) => i !== index))
+      setAdditionalImagePreviews(prev => {
+        const newPreviews = [...prev];
+        newPreviews.splice(index, 1);
+        return newPreviews;
+      });
+    } else {
+      // Store the URL of the image to be removed before removing it from the previews
+      const imageUrlToRemove = additionalImagePreviews[index];
+      
+      // Remove from existing previews
+      setAdditionalImagePreviews(prev => {
+        const newPreviews = [...prev];
+        newPreviews.splice(index, 1);
+        return newPreviews;
+      });
+      
+      // Track which existing images to remove
+      const imageToRemove = productImages.find(img => 
+        !img.is_main && img.image_url === imageUrlToRemove
+      );
+      
+      if (imageToRemove) {
+        console.log("Removing image from productImages:", imageToRemove);
+        setProductImages(prev => prev.filter(img => img.id !== imageToRemove.id));
+      }
+    }
   }
 
   // Helper function to check if a category exists in our groupings
@@ -243,9 +355,7 @@ export default function EditProduct({ params }) {
       }
 
       console.log("Sending update for product:", productId)
-      console.log("Update data:", productData)
-
-      // Update product via API with cache-busting parameter
+      console.log("Update data:", productData)      // Update product via API with cache-busting parameter
       const timestamp = new Date().getTime()
       const response = await fetch(`/api/products/${productId}?t=${timestamp}`, {
         method: 'PUT',
@@ -262,6 +372,99 @@ export default function EditProduct({ params }) {
       
       if (!response.ok) {
         throw new Error(result.error || "Failed to update product")
+      }
+      
+      // Upload additional images if available
+      if (additionalImageFiles.length > 0) {
+        try {
+          // Process and upload additional images
+          const additionalImages = [];
+          
+          // Upload each additional image
+          for (let i = 0; i < additionalImageFiles.length; i++) {
+            const file = additionalImageFiles[i];
+            const fileExt = file.name.split('.').pop();
+            const fileName = `${Date.now()}_${i}.${fileExt}`;
+            const filePath = `products/${fileName}`;
+            
+            // Upload file to storage
+            const fileArrayBuffer = await file.arrayBuffer();
+            const fileBuffer = new Uint8Array(fileArrayBuffer);
+            
+            const { data: uploadData, error: uploadError } = await supabase.storage
+              .from('eighthand')
+              .upload(filePath, fileBuffer, {
+                contentType: file.type,
+                cacheControl: '3600'
+              });
+              
+            if (uploadError) {
+              console.log(`Failed to upload additional image ${i}:`, uploadError.message);
+              continue; // Skip this image but try the others
+            }
+            
+            // Get the public URL
+            const { data: urlData } = supabase.storage
+              .from('eighthand')
+              .getPublicUrl(filePath);
+              
+            additionalImages.push({
+              image_url: urlData.publicUrl,
+              is_main: false,
+              display_order: i + 1
+            });
+          }
+          
+          // Get existing product images and keep the ones we didn't remove
+          const existingImages = productImages.filter(img => {
+            // Always keep the main image
+            if (img.is_main) return true;
+            
+            // Keep only the additional images that are still in our additionalImagePreviews array
+            return additionalImagePreviews.includes(img.image_url);
+          });
+          
+          console.log("Existing images to keep:", existingImages);
+          console.log("New additional images:", additionalImages);
+          
+          // Combine existing images with new ones
+          const allImages = [
+            ...existingImages,
+            ...additionalImages
+          ];
+          
+          console.log("All images to save:", allImages);
+          
+          // Ensure we have one main image
+          if (allImages.length > 0 && !allImages.some(img => img.is_main)) {
+            allImages[0].is_main = true;
+          }
+          
+          // Update display order
+          allImages.forEach((img, index) => {
+            img.display_order = index;
+          });
+          
+          // Save all images to the database
+          const imagesResponse = await fetch(`/api/products/${productId}/images`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ images: allImages }),
+          });
+          
+          const imagesResult = await imagesResponse.json();
+          if (!imagesResult.success) {
+            console.error("Failed to save additional images:", imagesResult.error);
+          } else {
+            console.log("Product images updated successfully");
+            setProductImages(imagesResult.data || []);
+          }
+        } catch (uploadError) {
+          console.error("Error uploading additional images:", uploadError);
+          // Continue with product update, even if additional images failed
+        }
       }
 
       // If successful, update the local product state
@@ -450,8 +653,7 @@ export default function EditProduct({ params }) {
             </div>
 
             {/* Right column */}
-            <div>
-              <div className="mb-6">
+            <div>              <div className="mb-6">
                 <label className="block text-gray-700 text-sm font-medium mb-2">
                   Product Image
                 </label>
@@ -479,8 +681,58 @@ export default function EditProduct({ params }) {
                       onChange={handleImageChange}
                     />
                     <ImagePlus size={16} className="mr-2" />
-                    {product.image_url ? "Change Image" : "Upload Image"}
+                    {product.image_url ? "Change Main Image" : "Upload Main Image"}
                   </label>
+                </div>
+              </div>
+
+              {/* Additional Images Section */}
+              <div className="mb-6">
+                <label className="block text-gray-700 text-sm font-medium mb-2">
+                  Additional Images
+                </label>
+                <div className="border rounded-md p-4">
+                  {/* Display additional image previews */}
+                  {additionalImagePreviews.length > 0 && (
+                    <div className="grid grid-cols-3 gap-2 mb-4">
+                      {additionalImagePreviews.map((preview, index) => (
+                        <div key={index} className="relative h-24 bg-gray-100 rounded overflow-hidden">
+                          <Image
+                            src={preview}
+                            alt={`Additional image ${index + 1}`}
+                            fill
+                            className="object-cover"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveAdditionalImage(index)}
+                            className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 focus:outline-none"
+                            aria-label="Remove image"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  
+                  {/* Upload additional images */}
+                  {additionalImagePreviews.length < 3 && (
+                    <label className="w-full flex items-center justify-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                      <input
+                        type="file"
+                        className="sr-only"
+                        accept="image/*"
+                        onChange={handleAdditionalImageChange}
+                        ref={additionalFileInputRef}
+                      />
+                      <UploadCloud size={16} className="mr-2" />
+                      Add Additional Image
+                    </label>
+                  )}
+                  <p className="text-xs text-gray-500 mt-2">
+                    You can upload up to 3 additional images. Max size: 5MB each.
+                  </p>
                 </div>
               </div>
 

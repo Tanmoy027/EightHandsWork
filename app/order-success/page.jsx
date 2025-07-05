@@ -83,7 +83,7 @@ export default function OrderSuccess() {
             </div>
             <div className="flex justify-between">
               <span className="font-medium">Total Amount:</span>
-              <span className="font-bold">${order.total_amount}</span>
+              <span className="font-bold">৳{order.total_amount}</span>
             </div>
           </div>
 

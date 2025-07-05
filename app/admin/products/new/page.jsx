@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useSupabase } from "@/lib/supabase-provider"
-import { ArrowLeft, LinkIcon, UploadCloud } from "lucide-react"
+import { ArrowLeft, LinkIcon, UploadCloud, X, Image as ImageIcon } from "lucide-react"
 
 export default function NewProduct() {
   const [formData, setFormData] = useState({
@@ -19,9 +19,10 @@ export default function NewProduct() {
   const [error, setError] = useState(null)
   const [success, setSuccess] = useState(false)
   const [categories, setCategories] = useState([])
-  const [imageFile, setImageFile] = useState(null)
-  const [imagePreview, setImagePreview] = useState(null)
+  const [imageFiles, setImageFiles] = useState([])
+  const [imagePreviews, setImagePreviews] = useState([])
   const fileInputRef = useRef(null)
+  const additionalFileInputRef = useRef(null)
   const router = useRouter()
   const { supabase, user, loading: userLoading } = useSupabase()
 
@@ -128,13 +129,23 @@ export default function NewProduct() {
       return
     }
     
-    setImageFile(file)
+    // Add to image files array at position 0 (main image)
+    setImageFiles(prev => {
+      const newFiles = [...prev]
+      newFiles[0] = file
+      return newFiles
+    })
+    
     setError(null)
     
     // Create preview
     const reader = new FileReader()
     reader.onload = () => {
-      setImagePreview(reader.result)
+      setImagePreviews(prev => {
+        const newPreviews = [...prev]
+        newPreviews[0] = reader.result
+        return newPreviews
+      })
     }
     reader.readAsDataURL(file)
     
@@ -145,10 +156,54 @@ export default function NewProduct() {
     }))
   }
   
-  const handleRemoveImage = () => {
-    setImageFile(null)
-    setImagePreview(null)
-    fileInputRef.current.value = ""
+  const handleAdditionalFileChange = (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+    
+    // Check file type
+    const fileType = file.type
+    if (!fileType.startsWith('image/')) {
+      setError('Please upload an image file (JPEG, PNG, etc.)')
+      return
+    }
+    
+    // Check file size (limit to 5MB)
+    const fileSizeInMB = file.size / (1024 * 1024)
+    if (fileSizeInMB > 5) {
+      setError('Image file is too large. Please upload an image smaller than 5MB.')
+      return
+    }
+    
+    // Don't allow more than 4 images total (1 main + 3 additional)
+    if (imageFiles.length >= 4) {
+      setError('Maximum 4 images allowed (1 main + 3 additional)')
+      return
+    }
+    
+    // Add to image files array
+    setImageFiles(prev => [...prev, file])
+    setError(null)
+    
+    // Create preview
+    const reader = new FileReader()
+    reader.onload = () => {
+      setImagePreviews(prev => [...prev, reader.result])
+    }
+    reader.readAsDataURL(file)
+    
+    // Reset the file input for the next selection
+    if (additionalFileInputRef.current) {
+      additionalFileInputRef.current.value = ''
+    }
+  }
+  
+  const handleRemoveImage = (index) => {
+    setImageFiles(prev => prev.filter((_, i) => i !== index))
+    setImagePreviews(prev => prev.filter((_, i) => i !== index))
+    
+    if (index === 0) {
+      fileInputRef.current.value = ""
+    }
   }
 
   const handleSubmit = async (e) => {
@@ -179,28 +234,28 @@ export default function NewProduct() {
       let imageUrl = null;
       
       // If we have an image file, upload it to Supabase storage
-      if (imageFile) {
+      if (imageFiles[0]) {
         // Use our improved upload API
-        const formData = new FormData();
-        formData.append('file', imageFile);
-        formData.append('folder', 'products');
+        const imageFormData = new FormData();
+        imageFormData.append('file', imageFiles[0]);
+        imageFormData.append('folder', 'products');
         
         try {
           // Try direct Supabase upload first
           try {
             console.log("Attempting direct Supabase upload...");
-            const fileExt = imageFile.name.split('.').pop();
+            const fileExt = imageFiles[0].name.split('.').pop();
             const fileName = `${Date.now()}.${fileExt}`;
             const filePath = `products/${fileName}`;
             
             // Convert file to array buffer for Supabase client
-            const fileArrayBuffer = await imageFile.arrayBuffer();
+            const fileArrayBuffer = await imageFiles[0].arrayBuffer();
             const fileBuffer = new Uint8Array(fileArrayBuffer);
             
             const { data: uploadData, error: uploadError } = await supabase.storage
               .from('eighthand')
               .upload(filePath, fileBuffer, {
-                contentType: imageFile.type,
+                contentType: imageFiles[0].type,
                 cacheControl: '3600'
               });
               
@@ -222,7 +277,7 @@ export default function NewProduct() {
             // If direct upload fails, try the API upload endpoint
             const uploadResponse = await fetch('/api/storage/upload', {
               method: 'POST',
-              body: formData
+              body: imageFormData
             });
             
             const uploadResult = await uploadResponse.json();
@@ -232,7 +287,7 @@ export default function NewProduct() {
               console.log("API upload failed, trying admin upload...");
               const adminUploadResponse = await fetch('/api/storage/admin-upload', {
                 method: 'POST',
-                body: formData
+                body: imageFormData
               });
               
               const adminUploadResult = await adminUploadResponse.json();
@@ -285,6 +340,73 @@ export default function NewProduct() {
       }
 
       console.log("Product created successfully:", data);
+      console.log("Additional image files:", imageFiles.length > 1 ? imageFiles.slice(1) : "None");
+      
+      // Upload additional images if available
+      if (imageFiles.length > 1 && data && data[0]?.id) {
+        const productId = data[0].id;
+        
+        try {
+          // Process and upload additional images
+          const additionalImages = [];
+          
+          // Start from index 1 (skip the main image which is already saved)
+          for (let i = 1; i < imageFiles.length; i++) {
+            const file = imageFiles[i];
+            const fileExt = file.name.split('.').pop();
+            const fileName = `${Date.now()}_${i}.${fileExt}`;
+            const filePath = `products/${fileName}`;
+            
+            // Upload file to storage
+            const fileArrayBuffer = await file.arrayBuffer();
+            const fileBuffer = new Uint8Array(fileArrayBuffer);
+            
+            const { data: uploadData, error: uploadError } = await supabase.storage
+              .from('eighthand')
+              .upload(filePath, fileBuffer, {
+                contentType: file.type,
+                cacheControl: '3600'
+              });
+              
+            if (uploadError) {
+              console.log(`Failed to upload additional image ${i}:`, uploadError.message);
+              continue; // Skip this image but try the others
+            }
+            
+            // Get the public URL
+            const { data: urlData } = supabase.storage
+              .from('eighthand')
+              .getPublicUrl(filePath);
+              
+            additionalImages.push({
+              image_url: urlData.publicUrl,
+              is_main: false,
+              display_order: i
+            });
+          }
+          
+          // Save additional images to the database if any were successfully uploaded
+          if (additionalImages.length > 0) {
+            const response = await fetch(`/api/products/${productId}/images`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ images: additionalImages }),
+            });
+            
+            const result = await response.json();
+            if (!result.success) {
+              console.error("Failed to save additional images:", result.error);
+            } else {
+              console.log("Additional images saved successfully");
+            }
+          }
+        } catch (uploadError) {
+          console.error("Error uploading additional images:", uploadError);
+          // Continue with product creation, even if additional images failed
+        }
+      }
 
       // Show success message
       setSuccess(true);
@@ -298,13 +420,14 @@ export default function NewProduct() {
         category: "",
         in_stock: true,
       });
-      setImageFile(null);
-      setImagePreview(null);
+      setImageFiles([]);
+      setImagePreviews([]);
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
-      setImageFile(null)
-      setImagePreview(null)
+      if (additionalFileInputRef.current) {
+        additionalFileInputRef.current.value = "";
+      }
 
       // Redirect after 2 seconds
       setTimeout(() => {
@@ -431,14 +554,14 @@ export default function NewProduct() {
                       name="image_url"
                       value={formData.image_url}
                       onChange={handleChange}
-                      className={`input-field ${imageFile ? 'bg-gray-100' : ''}`}
+                      className={`input-field ${imageFiles[0] ? 'bg-gray-100' : ''}`}
                       placeholder="https://example.com/image.jpg"
-                      disabled={imageFile !== null}
+                      disabled={imageFiles[0] ? true : false}
                     />
                   </div>
                   <p className="text-xs text-gray-500 mt-1">
                     Enter a URL for the product image. Leave blank to use a placeholder.
-                    {imageFile && <span className="text-amber-600"> (Disabled while using file upload)</span>}
+                    {imageFiles[0] && <span className="text-amber-600"> (Disabled while using file upload)</span>}
                   </p>
                   {formData.image_url && (
                     <div className="mt-2">
@@ -483,18 +606,18 @@ export default function NewProduct() {
                     Upload an image for the product. Max size: 5MB.
                     {formData.image_url && <span className="text-amber-600"> (Disabled while using image URL)</span>}
                   </p>
-                  {imagePreview && (
+                  {imagePreviews[0] && (
                     <div className="mt-2">
                       <p className="text-xs text-gray-500 mb-1">Preview:</p>
                       <div className="relative">
                         <img
-                          src={imagePreview}
+                          src={imagePreviews[0]}
                           alt="Image Preview"
                           className="h-40 object-contain border rounded"
                         />
                         <button
                           type="button"
-                          onClick={handleRemoveImage}
+                          onClick={() => handleRemoveImage(0)}
                           className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 focus:outline-none"
                           aria-label="Remove image"
                         >
@@ -505,6 +628,47 @@ export default function NewProduct() {
                       </div>
                     </div>
                   )}
+
+                  {/* Additional Image Uploads */}
+                  {imagePreviews.slice(1).map((preview, index) => (
+                    <div key={index} className="mt-4">
+                      <p className="text-xs text-gray-500 mb-1">Additional Image Preview:</p>
+                      <div className="relative inline-block">
+                        <img
+                          src={preview}
+                          alt={`Additional Image Preview ${index + 1}`}
+                          className="h-32 object-contain border rounded"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveImage(index + 1)}
+                          className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 focus:outline-none"
+                          aria-label="Remove image"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+
+                  <div className="mt-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Upload Additional Images
+                    </label>
+                    <div className="flex items-center">
+                      <UploadCloud className="h-5 w-5 text-gray-400 mr-2" />
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleAdditionalFileChange}
+                        className="input-field"
+                        ref={additionalFileInputRef}
+                      />
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">
+                      You can upload up to 3 additional images. Max size: 5MB each.
+                    </p>
+                  </div>
                 </div>
 
                 <div>
@@ -547,26 +711,37 @@ export default function NewProduct() {
                     name="in_stock"
                     checked={formData.in_stock}
                     onChange={handleChange}
-                    className="h-4 w-4 text-amber-500 focus:ring-amber-500 border-gray-300 rounded"
+                    className="h-4 w-4 text-amber-500 focus:ring-amber-500 rounded border-gray-300"
                   />
-                  <label htmlFor="in_stock" className="ml-2 block text-sm text-gray-700">
+                  <label htmlFor="in_stock" className="ml-2 text-sm text-gray-700">
                     In Stock
                   </label>
                 </div>
-              </div>
 
-              <div className="mt-8 flex justify-end">
-                <Link href="/admin/products" className="btn-outline mr-4">
-                  Cancel
-                </Link>
-                <button type="submit" disabled={isSubmitting} className="btn-primary">
-                  {isSubmitting ? "Creating..." : "Create Product"}
-                </button>
+                <div className="pt-4">
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="w-full px-4 py-2 bg-amber-500 text-white rounded-md hover:bg-amber-600 disabled:opacity-50 flex items-center justify-center"
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Creating...
+                      </>
+                    ) : (
+                      "Create Product"
+                    )}
+                  </button>
+                </div>
               </div>
             </form>
           </div>
         </div>
       </div>
     </div>
-  )
+  );
 }

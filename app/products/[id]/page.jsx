@@ -6,14 +6,18 @@ import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
 import { useSupabase } from "@/lib/supabase-provider"
 import { useCart } from "@/lib/cart-context"
-import { ShoppingCart, ArrowLeft, Minus, Plus } from "lucide-react"
+import { ShoppingCart, ArrowLeft, Minus, Plus, ChevronLeft, ChevronRight } from "lucide-react"
+import { use } from "react"
 
-export default function ProductDetail() {
+export default function ProductDetail({ params }) {
   const [product, setProduct] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [quantity, setQuantity] = useState(1)
-  const params = useParams()
+  const [productImages, setProductImages] = useState([])
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0)
+  const unwrappedParams = use(params)
+  const productId = unwrappedParams.id
   const router = useRouter()
   const { supabase } = useSupabase()
   const { addToCart } = useCart()
@@ -21,11 +25,41 @@ export default function ProductDetail() {
   useEffect(() => {
     const fetchProduct = async () => {
       try {
-        const { data, error } = await supabase.from("products").select("*").eq("id", params.id).single()
+        const { data, error } = await supabase.from("products").select("*").eq("id", productId).single()
 
         if (error) throw error
 
         setProduct(data)
+        
+        // Fetch product images if product exists
+        if (data) {
+          try {
+            console.log("Fetching images for product:", productId);
+            const imagesResponse = await fetch(`/api/products/${productId}/images`)
+            const imagesResult = await imagesResponse.json()
+            
+            if (imagesResult.success && imagesResult.data && imagesResult.data.length > 0) {
+              console.log("Retrieved product images:", imagesResult.data);
+              setProductImages(imagesResult.data)
+            } else {
+              // No images found in product_images table, use the single image_url from the product as the main image
+              console.log("No images in product_images, using main product image");
+              if (data.image_url) {
+                setProductImages([
+                  { id: "main", product_id: data.id, image_url: data.image_url, is_main: true, display_order: 0 }
+                ])
+              }
+            }
+          } catch (imageError) {
+            console.error("Error fetching product images:", imageError)
+            // Fallback to main product image
+            if (data.image_url) {
+              setProductImages([
+                { id: "main", product_id: data.id, image_url: data.image_url, is_main: true, display_order: 0 }
+              ])
+            }
+          }
+        }
       } catch (error) {
         console.error("Error fetching product:", error)
         setError("Product not found")
@@ -34,10 +68,10 @@ export default function ProductDetail() {
       }
     }
 
-    if (params.id) {
+    if (productId) {
       fetchProduct()
     }
-  }, [supabase, params.id])
+  }, [supabase, productId])
 
   const handleQuantityChange = (value) => {
     if (value < 1) return
@@ -49,6 +83,18 @@ export default function ProductDetail() {
       addToCart(product, quantity)
       // Show a toast or notification here
     }
+  }
+  
+  const handleImageClick = (index) => {
+    setSelectedImageIndex(index)
+  }
+  
+  const handleNextImage = () => {
+    setSelectedImageIndex((prev) => (prev + 1) % productImages.length)
+  }
+  
+  const handlePrevImage = () => {
+    setSelectedImageIndex((prev) => (prev - 1 + productImages.length) % productImages.length)
   }
 
   if (loading) {
@@ -70,6 +116,11 @@ export default function ProductDetail() {
       </div>
     )
   }
+  
+  // Get the main image to display
+  const mainImageUrl = productImages.length > 0 
+    ? productImages[selectedImageIndex]?.image_url 
+    : product.image_url || "/placeholder.svg?height=500&width=500"
 
   return (
     <div className="min-h-screen pt-20 pb-16">
@@ -82,18 +133,59 @@ export default function ProductDetail() {
         <div className="bg-white rounded-lg shadow-md overflow-hidden">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div className="p-6">
-              <Image
-                src={product.image_url || "/placeholder.svg?height=500&width=500"}
-                alt={product.name}
-                width={500}
-                height={500}
-                className="w-full h-auto object-cover rounded-lg"
-              />
+              <div className="relative">
+                <div className="relative h-96 rounded-lg overflow-hidden">
+                  <Image
+                    src={mainImageUrl || "/placeholder.svg?height=500&width=500"}
+                    alt={product.name}
+                    fill
+                    className="object-contain rounded-lg"
+                  />
+                </div>
+                
+                {productImages.length > 1 && (
+                  <>
+                    <button 
+                      onClick={handlePrevImage}
+                      className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-white bg-opacity-50 hover:bg-opacity-70 rounded-full p-2 shadow-md"
+                    >
+                      <ChevronLeft className="h-5 w-5 text-gray-700" />
+                    </button>
+                    <button 
+                      onClick={handleNextImage}
+                      className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-white bg-opacity-50 hover:bg-opacity-70 rounded-full p-2 shadow-md"
+                    >
+                      <ChevronRight className="h-5 w-5 text-gray-700" />
+                    </button>
+                  </>
+                )}
+              </div>
+              
+              {productImages.length > 1 && (
+                <div className="grid grid-cols-4 gap-2 mt-4">
+                  {productImages.map((image, index) => (
+                    <div 
+                      key={image.id || `img-${index}`}
+                      className={`relative cursor-pointer rounded-md overflow-hidden h-20 border-2 ${
+                        selectedImageIndex === index ? 'border-amber-500' : 'border-transparent'
+                      }`}
+                      onClick={() => handleImageClick(index)}
+                    >
+                      <Image
+                        src={image.image_url || "/placeholder.svg?height=100&width=100"}
+                        alt={`${product.name} - Image ${index + 1}`}
+                        fill
+                        className="object-cover"
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="p-6 flex flex-col">
               <h1 className="text-3xl font-bold mb-2">{product.name}</h1>
-              <p className="text-2xl font-bold text-amber-500 mb-4">${product.price}</p>
+              <p className="text-2xl font-bold text-amber-500 mb-4">৳{product.price}</p>
 
               <div className="border-t border-b py-4 my-4">
                 <p className="text-gray-700 leading-relaxed">{product.description}</p>

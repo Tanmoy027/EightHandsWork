@@ -6,7 +6,7 @@ export default function AboutSection() {
       <div className="container mx-auto">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
           <div>
-            <h2 className="text-3xl font-bold mb-6">About Eight Hands Work</h2>
+            <h2 className="text-2xl md:text-3xl font-medium mb-8">ABOUT EIGHT HANDS WORK</h2>
             <p className="text-gray-700 mb-6">
               Eight Hands Work started its commercial journey in 2017. We are able to offer the highest quality
               production of any custom product with epoxy. We are committed to keeping the commitment on time.

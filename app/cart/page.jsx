@@ -178,8 +178,8 @@ export default function Cart() {
                             </button>
                           </div>
                         </td>
-                        <td className="py-4 text-right">${item.price}</td>
-                        <td className="py-4 text-right font-medium">${(item.price * item.quantity).toFixed(2)}</td>
+                        <td className="py-4 text-right">৳{item.price}</td>
+                        <td className="py-4 text-right font-medium">৳{(item.price * item.quantity).toFixed(2)}</td>
                         <td className="py-4 text-right">
                           <button onClick={() => removeFromCart(item.id)} className="text-red-500 hover:text-red-700">
                             <Trash2 className="h-5 w-5" />
@@ -208,7 +208,7 @@ export default function Cart() {
                 <div className="space-y-3 mb-6">
                   <div className="flex justify-between">
                     <span>Subtotal</span>
-                    <span>${getCartTotal().toFixed(2)}</span>
+                    <span>৳{getCartTotal().toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Shipping</span>
@@ -216,7 +216,7 @@ export default function Cart() {
                   </div>
                   <div className="border-t pt-3 flex justify-between font-bold">
                     <span>Total</span>
-                    <span>${getCartTotal().toFixed(2)}</span>
+                    <span>৳{getCartTotal().toFixed(2)}</span>
                   </div>
                 </div>
 

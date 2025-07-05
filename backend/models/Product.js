@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase-client"
+import { supabaseAdmin } from "@/backend/config/database"
 
 export class ProductModel {
   static tableName = "products"
@@ -51,13 +52,17 @@ export class ProductModel {
       
       if (error) {
         console.error(`Error finding product ${id}:`, error)
-        throw error
+        return { success: false, error: error.message }
       }
       
-      return data
+      if (!data) {
+        return { success: false, error: "Product not found" }
+      }
+      
+      return { success: true, data }
     } catch (error) {
       console.error(`Error finding product ${id}:`, error)
-      throw error
+      return { success: false, error: error.message }
     }
   }
 
@@ -137,13 +142,31 @@ export class ProductModel {
   // Delete product
   static async delete(id) {
     try {
-      const { error } = await supabaseAdmin.from(this.tableName).delete().eq("id", id)
+      // First check if the product is referenced in any orders
+      const { data: orderItems, error: checkError } = await supabaseAdmin
+        .from("order_items")
+        .select("id")
+        .eq("product_id", id)
+        .limit(1);
+      
+      if (checkError) throw checkError;
+      
+      // If product is used in orders, don't delete it
+      if (orderItems && orderItems.length > 0) {
+        return { 
+          success: false, 
+          error: "Cannot delete this product because it is referenced in orders. Consider marking it as out of stock instead."
+        };
+      }
+      
+      // If no references, proceed with deletion
+      const { error } = await supabaseAdmin.from(this.tableName).delete().eq("id", id);
 
-      if (error) throw error
-      return { success: true, error: null }
+      if (error) throw error;
+      return { success: true, error: null };
     } catch (error) {
-      console.error("Error deleting product:", error)
-      return { success: false, error: error.message }
+      console.error("Error deleting product:", error);
+      return { success: false, error: error.message };
     }
   }
 

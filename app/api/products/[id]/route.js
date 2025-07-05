@@ -4,8 +4,8 @@ import { ProductService } from "@/backend/services/ProductService"
 // GET /api/products/[id] - Get a single product
 export async function GET(request, { params }) {
   try {
-    // Get id
-    const id = params.id
+    // Fix: Await params before accessing id
+    const id = await Promise.resolve(params).then(p => p.id)
     
     console.log(`API: Getting product with ID: ${id}`)
     const result = await ProductService.getProductById(id)

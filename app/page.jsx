@@ -7,6 +7,7 @@ import RoomShowcase from "@/components/room-showcase"
 import Achievements from "@/components/achievements"
 import ContactForm from "@/components/contact-form"
 import FurnitureCategories from "@/components/furniture-categories" // Fixed import path
+import ServicesSection from "@/components/services-section"
 
 export default async function Home() {
   let products = [];
@@ -26,8 +27,10 @@ export default async function Home() {
     <div>
       <Hero />
       <FurnitureCategories /> 
+    
       <TrendyProducts products={products} />
       <RoomShowcase />
+        <ServicesSection />
       <AboutSection />
       <Achievements />
       <ContactForm />

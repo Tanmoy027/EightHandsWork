@@ -97,14 +97,13 @@ export default function TrendyProducts({ products = [] }) {
               <div className="flex items-center mt-1 mb-1">
                 <div className="flex text-amber-500 text-xs">{"★★★★★"}</div>
               </div>
-              <div className="flex items-center">
-                {product.discount_price ? (
+              <div className="flex items-center">                {product.discount_price ? (
                   <>
-                    <span className="text-amber-600 font-bold text-sm">${product.discount_price.toFixed(2)}</span>
-                    <span className="ml-2 text-gray-400 line-through text-xs">${product.price.toFixed(2)}</span>
+                    <span className="text-amber-600 font-bold text-sm">৳{product.discount_price.toFixed(2)}</span>
+                    <span className="ml-2 text-gray-400 line-through text-xs">৳{product.price.toFixed(2)}</span>
                   </>
                 ) : (
-                  <span className="text-gray-800 font-bold text-sm">${product.price.toFixed(2)}</span>
+                  <span className="text-gray-800 font-bold text-sm">৳{product.price.toFixed(2)}</span>
                 )}
               </div>
             </Link>
@@ -135,11 +134,10 @@ export default function TrendyProducts({ products = [] }) {
               <div className="flex items-center mt-1 mb-1">
                 <div className="flex text-amber-500 text-xs">{"★★★★★"}</div>
               </div>
-              <div className="flex items-center">
-                {product.discount_price ? (
+              <div className="flex items-center">                {product.discount_price ? (
                   <>
-                    <span className="text-amber-600 font-bold text-sm">${product.discount_price.toFixed(2)}</span>
-                    <span className="ml-2 text-gray-400 line-through text-xs">${product.price.toFixed(2)}</span>
+                    <span className="text-amber-600 font-bold text-sm">৳{product.discount_price.toFixed(2)}</span>
+                    <span className="ml-2 text-gray-400 line-through text-xs">৳{product.price.toFixed(2)}</span>
                   </>
                 ) : (
                   <span className="text-gray-800 font-bold text-sm">৳{product.price.toFixed(2)}</span>
